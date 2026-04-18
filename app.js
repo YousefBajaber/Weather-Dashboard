@@ -14,20 +14,27 @@ async function searchCity() {
     return;
   }
 
-  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1`;
+  const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1`;
 
-  const response = await fetch(url);
-  const data = await response.json();
+  const geoResponse = await fetch(geoUrl);
+  const geoData = await geoResponse.json();
 
-  if (!data.results || data.results.length === 0) {
+  if (!geoData.results || geoData.results.length === 0) {
     errorMessage.textContent = "City not found. Please try again.";
     return;
   }
 
-  const city = data.results[0];
+  const city = geoData.results[0];
   const latitude = city.latitude;
   const longitude = city.longitude;
 
   console.log("Latitude:", latitude);
   console.log("Longitude:", longitude);
+
+  const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&hourly=temperature_2m,relativehumidity_2m,windspeed_10m&daily=temperature_2m_max,temperature_2m_min,weathercode`;
+
+  const weatherResponse = await fetch(weatherUrl);
+  const weatherData = await weatherResponse.json();
+
+  console.log(weatherData);
 }
