@@ -10,7 +10,7 @@ body {
 }
 
 .container {
-  max-width: 900px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 24px;
 }
@@ -50,14 +50,17 @@ header h1 {
   background-color: #1d4ed8;
 }
 
-.weather-card {
+.weather-card,
+.forecast-section {
   background-color: white;
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  margin-bottom: 24px;
 }
 
-.weather-card h2 {
+.weather-card h2,
+.forecast-section h2 {
   margin-top: 0;
   margin-bottom: 16px;
 }
@@ -65,4 +68,73 @@ header h1 {
 .weather-info p {
   margin: 10px 0;
   font-size: 16px;
+}
+
+.forecast-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 16px;
+}
+
+.forecast-card {
+  background-color: #f8fafc;
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  min-height: 140px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #e0e0e0 25%, #f5f5f5 50%, #e0e0e0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+.skeleton-text {
+  display: inline-block;
+  width: 120px;
+  height: 18px;
+  vertical-align: middle;
+}
+
+.skeleton-day {
+  width: 70%;
+  height: 18px;
+  margin: 0 auto 14px;
+}
+
+.skeleton-icon {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+}
+
+.skeleton-temp {
+  width: 80%;
+  height: 18px;
+  margin: 0 auto;
+}
+
+@media (max-width: 900px) {
+  .forecast-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .forecast-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
