@@ -122,8 +122,6 @@ function populateCurrentWeather(city, weatherData) {
   descriptionEl.textContent = `${weatherInfo.icon} ${weatherInfo.text}`;
   humidityEl.textContent = `${humidity}%`;
   windSpeedEl.textContent = `${current.windspeed} km/h`;
-
-  /* temporary until WorldTimeAPI updates it */
   localTimeEl.textContent = current.time.replace("T", " ");
 }
 
@@ -151,6 +149,7 @@ function populateForecast(dailyData) {
 function fetchLocalTime(timezone) {
   if (!timezone) {
     displayBrowserTime();
+    console.log("Local time request completed:", new Date().toLocaleString());
     return;
   }
 
@@ -164,6 +163,9 @@ function fetchLocalTime(timezone) {
     })
     .fail(function () {
       displayBrowserTime();
+    })
+    .always(function () {
+      console.log("Local time request completed:", new Date().toLocaleString());
     });
 }
 
