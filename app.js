@@ -14,29 +14,32 @@ const localTimeEl = document.getElementById("localTime");
 
 let lastSearchedCity = "";
 
+/* ✅ weather code lookup (point 10) */
 const weatherCodes = {
   0: { text: "Clear sky", icon: "☀️" },
   1: { text: "Mainly clear", icon: "🌤️" },
   2: { text: "Partly cloudy", icon: "⛅" },
   3: { text: "Overcast", icon: "☁️" },
   45: { text: "Fog", icon: "🌫️" },
-  48: { text: "Depositing rime fog", icon: "🌫️" },
+  48: { text: "Rime fog", icon: "🌫️" },
   51: { text: "Light drizzle", icon: "🌦️" },
   53: { text: "Moderate drizzle", icon: "🌦️" },
-  55: { text: "Dense drizzle", icon: "🌧️" },
+  55: { text: "Heavy drizzle", icon: "🌧️" },
   61: { text: "Slight rain", icon: "🌧️" },
   63: { text: "Moderate rain", icon: "🌧️" },
   65: { text: "Heavy rain", icon: "⛈️" },
-  71: { text: "Slight snow", icon: "❄️" },
+  71: { text: "Light snow", icon: "❄️" },
   73: { text: "Moderate snow", icon: "❄️" },
   75: { text: "Heavy snow", icon: "❄️" },
   80: { text: "Rain showers", icon: "🌦️" },
   81: { text: "Moderate showers", icon: "🌦️" },
-  82: { text: "Violent showers", icon: "⛈️" },
+  82: { text: "Heavy showers", icon: "⛈️" },
   95: { text: "Thunderstorm", icon: "⛈️" }
 };
 
+/* 🔘 events */
 searchBtn.addEventListener("click", searchCity);
+
 retryBtn.addEventListener("click", function () {
   if (lastSearchedCity !== "") {
     cityInput.value = lastSearchedCity;
@@ -44,6 +47,7 @@ retryBtn.addEventListener("click", function () {
   }
 });
 
+/* 🔍 main function */
 async function searchCity() {
   const cityName = cityInput.value.trim();
 
@@ -58,12 +62,13 @@ async function searchCity() {
   lastSearchedCity = cityName;
 
   try {
+    /* 1) Geocoding API */
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1`;
 
     const geoResponse = await fetch(geoUrl);
 
     if (!geoResponse.ok) {
-      throw new Error("Failed to fetch city coordinates.");
+      throw new Error("Geocoding failed");
     }
 
     const geoData = await geoResponse.json();
@@ -77,34 +82,42 @@ async function searchCity() {
     const latitude = city.latitude;
     const longitude = city.longitude;
 
+    /* 2) Weather API */
     const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&hourly=temperature_2m,relativehumidity_2m,windspeed_10m&daily=temperature_2m_max,temperature_2m_min,weathercode`;
 
     const weatherResponse = await fetch(weatherUrl);
 
     if (!weatherResponse.ok) {
-      throw new Error("Failed to fetch weather data.");
+      throw new Error("Weather fetch failed");
     }
 
     const weatherData = await weatherResponse.json();
 
+    /* 3) Populate UI (point 8) */
     populateCurrentWeather(city, weatherData);
     populateForecast(weatherData.daily);
+
+    /* 4) Remove skeleton */
     removeCurrentWeatherSkeleton();
     removeForecastSkeleton();
+
   } catch (error) {
+    /* 5) Error banner (point 9) */
     showErrorBanner("Network error. Please try again.");
     console.error(error);
   }
 }
 
+/* 🌤️ current weather */
 function populateCurrentWeather(city, weatherData) {
   const current = weatherData.current_weather;
   const hourly = weatherData.hourly;
-  const currentIndex = hourly.time.indexOf(current.time);
+
+  const index = hourly.time.indexOf(current.time);
 
   const humidity =
-    currentIndex !== -1
-      ? hourly.relativehumidity_2m[currentIndex]
+    index !== -1
+      ? hourly.relativehumidity_2m[index]
       : "--";
 
   const weatherInfo = weatherCodes[current.weathercode] || {
@@ -120,6 +133,7 @@ function populateCurrentWeather(city, weatherData) {
   localTimeEl.textContent = current.time.replace("T", " ");
 }
 
+/* 📅 7-day forecast */
 function populateForecast(dailyData) {
   for (let i = 0; i < 7; i++) {
     const dayEl = document.getElementById(`day${i + 1}`);
@@ -141,6 +155,7 @@ function populateForecast(dailyData) {
   }
 }
 
+/* 🧼 remove skeleton */
 function removeCurrentWeatherSkeleton() {
   cityNameEl.classList.remove("skeleton", "skeleton-text");
   temperatureEl.classList.remove("skeleton", "skeleton-text");
@@ -158,6 +173,7 @@ function removeForecastSkeleton() {
   }
 }
 
+/* ⚠️ error banner */
 function showErrorBanner(message) {
   errorBannerText.textContent = message;
   errorBanner.classList.remove("hidden");
