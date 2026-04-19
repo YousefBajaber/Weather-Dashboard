@@ -88,13 +88,13 @@ async function searchCity() {
 
     const weatherData = await weatherResponse.json();
 
+    hideErrorBanner();
     populateCurrentWeather(city, weatherData);
     populateForecast(weatherData.daily);
     fetchLocalTime(city.timezone);
 
     removeCurrentWeatherSkeleton();
     removeForecastSkeleton();
-
   } catch (error) {
     showErrorBanner("Network error. Please try again.");
     console.error(error);
@@ -105,12 +105,22 @@ function populateCurrentWeather(city, weatherData) {
   const current = weatherData.current_weather;
   const hourly = weatherData.hourly;
 
-  const index = hourly.time.indexOf(current.time);
+  let humidity = "--";
 
-  const humidity =
-    index !== -1
-      ? hourly.relativehumidity_2m[index]
-      : "--";
+  if (
+    hourly &&
+    hourly.time &&
+    hourly.relativehumidity_2m &&
+    hourly.time.length === hourly.relativehumidity_2m.length
+  ) {
+    const humidityIndex = hourly.time.indexOf(current.time);
+
+    if (humidityIndex !== -1) {
+      humidity = hourly.relativehumidity_2m[humidityIndex];
+    } else if (hourly.relativehumidity_2m.length > 0) {
+      humidity = hourly.relativehumidity_2m[0];
+    }
+  }
 
   const weatherInfo = weatherCodes[current.weathercode] || {
     text: "Unknown",
@@ -149,7 +159,6 @@ function populateForecast(dailyData) {
 function fetchLocalTime(timezone) {
   if (!timezone) {
     displayBrowserTime();
-    console.log("Local time request completed:", new Date().toLocaleString());
     return;
   }
 
@@ -165,7 +174,8 @@ function fetchLocalTime(timezone) {
       displayBrowserTime();
     })
     .always(function () {
-      console.log("Local time request completed:", new Date().toLocaleString());
+      const timestamp = new Date().toLocaleString();
+      console.log("WorldTimeAPI request completed at:", timestamp);
     });
 }
 
