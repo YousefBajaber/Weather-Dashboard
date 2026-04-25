@@ -12,7 +12,17 @@ const humidityEl = document.getElementById("humidity");
 const windSpeedEl = document.getElementById("windSpeed");
 const localTimeEl = document.getElementById("localTime");
 
+const recentSearchesEl = document.getElementById("recentSearches");
+const celsiusBtn = document.getElementById("celsiusBtn");
+const fahrenheitBtn = document.getElementById("fahrenheitBtn");
+
 let lastSearchedCity = "";
+let debounceTimer;
+
+let currentUnit = "C";
+let lastWeatherData = null;
+let lastCityData = null;
+let recentSearches = JSON.parse(localStorage.getItem("recentSearches")) || [];
 
 const weatherCodes = {
   0: { text: "Clear sky", icon: "☀️" },
@@ -38,10 +48,44 @@ const weatherCodes = {
 
 searchBtn.addEventListener("click", searchCity);
 
+cityInput.addEventListener("input", function () {
+  clearTimeout(debounceTimer);
+
+  debounceTimer = setTimeout(function () {
+    const cityName = cityInput.value.trim();
+
+    if (cityName.length >= 2) {
+      searchCity();
+    }
+  }, 500);
+});
+
 retryBtn.addEventListener("click", function () {
   if (lastSearchedCity !== "") {
     cityInput.value = lastSearchedCity;
     searchCity();
+  }
+});
+
+celsiusBtn.addEventListener("click", function () {
+  currentUnit = "C";
+  celsiusBtn.classList.add("active-unit");
+  fahrenheitBtn.classList.remove("active-unit");
+
+  if (lastWeatherData && lastCityData) {
+    populateCurrentWeather(lastCityData, lastWeatherData);
+    populateForecast(lastWeatherData.daily);
+  }
+});
+
+fahrenheitBtn.addEventListener("click", function () {
+  currentUnit = "F";
+  fahrenheitBtn.classList.add("active-unit");
+  celsiusBtn.classList.remove("active-unit");
+
+  if (lastWeatherData && lastCityData) {
+    populateCurrentWeather(lastCityData, lastWeatherData);
+    populateForecast(lastWeatherData.daily);
   }
 });
 
@@ -56,21 +100,25 @@ async function searchCity() {
     return;
   }
 
+  if (cityName.length < 2) {
+    errorMessage.textContent = "Please enter at least 2 characters.";
+    return;
+  }
+
   lastSearchedCity = cityName;
 
   try {
+    addCurrentWeatherSkeleton();
+    addForecastSkeleton();
+
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1`;
 
-    const geoResponse = await fetch(geoUrl);
-
-    if (!geoResponse.ok) {
-      throw new Error("Geocoding failed");
-    }
-
-    const geoData = await geoResponse.json();
+    const geoData = await fetchWithTimeout(geoUrl);
 
     if (!geoData.results || geoData.results.length === 0) {
       errorMessage.textContent = "City not found. Please try again.";
+      removeCurrentWeatherSkeleton();
+      removeForecastSkeleton();
       return;
     }
 
@@ -80,13 +128,12 @@ async function searchCity() {
 
     const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&hourly=temperature_2m,relativehumidity_2m,windspeed_10m&daily=temperature_2m_max,temperature_2m_min,weathercode`;
 
-    const weatherResponse = await fetch(weatherUrl);
+    const weatherData = await fetchWithTimeout(weatherUrl);
 
-    if (!weatherResponse.ok) {
-      throw new Error("Weather fetch failed");
-    }
+    lastWeatherData = weatherData;
+    lastCityData = city;
 
-    const weatherData = await weatherResponse.json();
+    saveRecentSearch(city.name);
 
     hideErrorBanner();
     populateCurrentWeather(city, weatherData);
@@ -96,8 +143,38 @@ async function searchCity() {
     removeCurrentWeatherSkeleton();
     removeForecastSkeleton();
   } catch (error) {
-    showErrorBanner("Network error. Please try again.");
+    showErrorBanner(error.message || "Network error. Please try again.");
     console.error(error);
+  }
+}
+
+async function fetchWithTimeout(url) {
+  const controller = new AbortController();
+
+  const timeoutId = setTimeout(function () {
+    controller.abort();
+  }, 10000);
+
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`HTTP Error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+
+    if (error.name === "AbortError") {
+      throw new Error("Request timeout. Please try again.");
+    }
+
+    throw error;
   }
 }
 
@@ -128,7 +205,7 @@ function populateCurrentWeather(city, weatherData) {
   };
 
   cityNameEl.textContent = city.name;
-  temperatureEl.textContent = `${current.temperature}°C`;
+  temperatureEl.textContent = formatTemperature(current.temperature);
   descriptionEl.textContent = `${weatherInfo.icon} ${weatherInfo.text}`;
   humidityEl.textContent = `${humidity}%`;
   windSpeedEl.textContent = `${current.windspeed} km/h`;
@@ -152,13 +229,13 @@ function populateForecast(dailyData) {
 
     dayEl.textContent = dayName;
     iconEl.textContent = weatherInfo.icon;
-    tempEl.textContent = `${dailyData.temperature_2m_max[i]}°C / ${dailyData.temperature_2m_min[i]}°C`;
+    tempEl.textContent = `${formatTemperature(dailyData.temperature_2m_max[i])} / ${formatTemperature(dailyData.temperature_2m_min[i])}`;
   }
 }
 
 function fetchLocalTime(timezone) {
   if (!timezone) {
-    displayBrowserTime();
+    localTimeEl.textContent = "Timezone unavailable";
     return;
   }
 
@@ -171,7 +248,17 @@ function fetchLocalTime(timezone) {
       localTimeEl.textContent = formattedTime;
     })
     .fail(function () {
-      displayBrowserTime();
+      const cityTime = new Date().toLocaleString("en-US", {
+        timeZone: timezone,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+      });
+
+      localTimeEl.textContent = cityTime;
     })
     .always(function () {
       const timestamp = new Date().toLocaleString();
@@ -179,9 +266,70 @@ function fetchLocalTime(timezone) {
     });
 }
 
-function displayBrowserTime() {
-  const now = new Date();
-  localTimeEl.textContent = now.toLocaleString();
+function formatTemperature(celsius) {
+  if (currentUnit === "F") {
+    const fahrenheit = (celsius * 9) / 5 + 32;
+    return `${fahrenheit.toFixed(1)}°F`;
+  }
+
+  return `${celsius}°C`;
+}
+
+function saveRecentSearch(cityName) {
+  recentSearches = recentSearches.filter(function (city) {
+    return city.toLowerCase() !== cityName.toLowerCase();
+  });
+
+  recentSearches.unshift(cityName);
+  recentSearches = recentSearches.slice(0, 5);
+
+  localStorage.setItem("recentSearches", JSON.stringify(recentSearches));
+  displayRecentSearches();
+}
+
+function displayRecentSearches() {
+  recentSearchesEl.innerHTML = "";
+
+  recentSearches.forEach(function (city) {
+    const chip = document.createElement("span");
+    chip.className = "search-chip";
+    chip.textContent = city;
+
+    chip.addEventListener("click", function () {
+      cityInput.value = city;
+      searchCity();
+    });
+
+    recentSearchesEl.appendChild(chip);
+  });
+}
+
+function addCurrentWeatherSkeleton() {
+  cityNameEl.textContent = "";
+  temperatureEl.textContent = "";
+  descriptionEl.textContent = "";
+  humidityEl.textContent = "";
+  windSpeedEl.textContent = "";
+  localTimeEl.textContent = "";
+
+  cityNameEl.classList.add("skeleton", "skeleton-text");
+  temperatureEl.classList.add("skeleton", "skeleton-text");
+  descriptionEl.classList.add("skeleton", "skeleton-text");
+  humidityEl.classList.add("skeleton", "skeleton-text");
+  windSpeedEl.classList.add("skeleton", "skeleton-text");
+  localTimeEl.classList.add("skeleton", "skeleton-text");
+}
+
+function addForecastSkeleton() {
+  for (let i = 1; i <= 7; i++) {
+    document.getElementById(`day${i}`).textContent = "";
+    document.getElementById(`icon${i}`).textContent = "";
+    document.getElementById(`temp${i}`).textContent = "";
+
+    document.getElementById(`day${i}`).classList.add("skeleton", "skeleton-day");
+    document.getElementById(`icon${i}`).classList.add("skeleton", "skeleton-icon");
+    document.getElementById(`temp${i}`).classList.add("skeleton", "skeleton-temp");
+  }
 }
 
 function removeCurrentWeatherSkeleton() {
@@ -209,3 +357,5 @@ function showErrorBanner(message) {
 function hideErrorBanner() {
   errorBanner.classList.add("hidden");
 }
+
+displayRecentSearches();

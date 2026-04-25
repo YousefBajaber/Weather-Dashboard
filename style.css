@@ -187,3 +187,46 @@ header h1 {
 .forecast-icon {
   font-size: 28px;
 }
+
+
+.hidden {
+  display: none !important;
+}
+
+
+.unit-toggle {
+  margin-bottom: 16px;
+}
+
+.unit-toggle button {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-right: 8px;
+  background-color: #e5e7eb;
+}
+
+.unit-toggle .active-unit {
+  background-color: #2563eb;
+  color: white;
+}
+
+.recent-searches {
+  margin-bottom: 20px;
+}
+
+.search-chip {
+  display: inline-block;
+  padding: 8px 12px;
+  margin: 4px;
+  background-color: #dbeafe;
+  color: #1e40af;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.search-chip:hover {
+  background-color: #bfdbfe;
+}
