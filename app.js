@@ -1,3 +1,4 @@
+// Get HTML elements
 const cityInput = document.getElementById("cityInput");
 const searchBtn = document.getElementById("searchBtn");
 const errorMessage = document.getElementById("errorMessage");
@@ -22,8 +23,11 @@ let debounceTimer;
 let currentUnit = "C";
 let lastWeatherData = null;
 let lastCityData = null;
+
+// Load recent searches from localStorage
 let recentSearches = JSON.parse(localStorage.getItem("recentSearches")) || [];
 
+// Weather code descriptions
 const weatherCodes = {
   0: { text: "Clear sky", icon: "☀️" },
   1: { text: "Mainly clear", icon: "🌤️" },
@@ -48,6 +52,7 @@ const weatherCodes = {
 
 searchBtn.addEventListener("click", searchCity);
 
+// Debounce search input to avoid too many API calls
 cityInput.addEventListener("input", function () {
   clearTimeout(debounceTimer);
 
@@ -67,6 +72,7 @@ retryBtn.addEventListener("click", function () {
   }
 });
 
+// Switch back to Celsius without new API call
 celsiusBtn.addEventListener("click", function () {
   currentUnit = "C";
   celsiusBtn.classList.add("active-unit");
@@ -78,6 +84,7 @@ celsiusBtn.addEventListener("click", function () {
   }
 });
 
+// Switch to Fahrenheit without new API call
 fahrenheitBtn.addEventListener("click", function () {
   currentUnit = "F";
   fahrenheitBtn.classList.add("active-unit");
@@ -95,6 +102,7 @@ async function searchCity() {
   errorMessage.textContent = "";
   hideErrorBanner();
 
+  // Validate input before API call
   if (cityName === "") {
     errorMessage.textContent = "Please enter a city name.";
     return;
@@ -111,6 +119,7 @@ async function searchCity() {
     addCurrentWeatherSkeleton();
     addForecastSkeleton();
 
+    // First API call: get latitude and longitude
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1`;
 
     const geoData = await fetchWithTimeout(geoUrl);
@@ -126,10 +135,12 @@ async function searchCity() {
     const latitude = city.latitude;
     const longitude = city.longitude;
 
+    // Second API call: get weather data
     const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&hourly=temperature_2m,relativehumidity_2m,windspeed_10m&daily=temperature_2m_max,temperature_2m_min,weathercode`;
 
     const weatherData = await fetchWithTimeout(weatherUrl);
 
+    // Save latest data for unit toggle
     lastWeatherData = weatherData;
     lastCityData = city;
 
@@ -148,6 +159,7 @@ async function searchCity() {
   }
 }
 
+// Fetch request with 10-second timeout
 async function fetchWithTimeout(url) {
   const controller = new AbortController();
 
@@ -233,6 +245,7 @@ function populateForecast(dailyData) {
   }
 }
 
+// jQuery AJAX request for local time
 function fetchLocalTime(timezone) {
   if (!timezone) {
     localTimeEl.textContent = "Timezone unavailable";
@@ -266,6 +279,7 @@ function fetchLocalTime(timezone) {
     });
 }
 
+// Convert temperature based on selected unit
 function formatTemperature(celsius) {
   if (currentUnit === "F") {
     const fahrenheit = (celsius * 9) / 5 + 32;
@@ -275,6 +289,7 @@ function formatTemperature(celsius) {
   return `${celsius}°C`;
 }
 
+// Save only the last 5 searched cities
 function saveRecentSearch(cityName) {
   recentSearches = recentSearches.filter(function (city) {
     return city.toLowerCase() !== cityName.toLowerCase();
